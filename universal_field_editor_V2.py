@@ -19,11 +19,16 @@ import json
 # Third-party imports
 import pandas as pd
 import requests
+from dotenv import load_dotenv
+import os
 
 # Dataverse API imports
 # Documentation: https://pydataverse.readthedocs.io/en/latest/
 import pyDataverse.utils as utils
 from pyDataverse.api import NativeApi, DataAccessApi
+
+# Load environment variables
+load_dotenv()
 
 # ============================================================================
 # CONFIGURATION SETTINGS
@@ -31,11 +36,16 @@ from pyDataverse.api import NativeApi, DataAccessApi
 
 # CSV file directories - list format allows multiple metadata blocks
 # Example: ['path/to/citation.csv', 'path/to/social_science.csv']
-file_directory = ['DIRECTORY/FOR/Citation Metadata.csv', 'DIRECTORY/FOR/Social Science and Humanities.csv']
+# Try to load from environment variable, otherwise use default files
+csv_paths_from_env = os.getenv('CSV_FILE_PATHS')
+if csv_paths_from_env:
+    file_directory = [path.strip() for path in csv_paths_from_env.split(',')]
+else:
+    file_directory = ['./Citation_Fields_V1.csv', './SocialSciences_Fields_V1.csv']
 
 # API credentials and endpoint configuration
-api_token_origin = "API KEY HERE"           # Dataverse API token
-url_base_origin = 'BASE URL HERE'           # Dataverse base URL (e.g., https://demo.borealisdata.ca)
+api_token_origin = os.getenv('DATAVERSE_API_TOKEN', 'API KEY HERE')  # Dataverse API token
+url_base_origin = os.getenv('DATAVERSE_BASE_URL', 'BASE URL HERE')   # Dataverse base URL (e.g., https://demo.borealisdata.ca)
 
 # API headers and client initialization
 headers_origin = {'X-Dataverse-key': api_token_origin}
@@ -487,6 +497,53 @@ def xml_selecter(headers):
         }
         block_name = 'socialscience'
 
+    # Default fallback for files without markers
+    # Auto-detect based on field names - if title/subtitle are present, it's likely citation
+    else:
+        if any(field in headers for field in ['title', 'subtitle', 'alternativeTitle']):
+            print("No marker found in CSV headers, defaulting to 'citation' metadata block")
+            field_directory = {
+                'title': {"typeName": "title", "multiple": False, "typeClass": "primitive", "value": ""},
+                'subtitle': {"typeName": "subtitle", "multiple": False, "typeClass": "primitive", "value": ""},
+                'alternativeTitle': {"typeName": "alternativeTitle", "multiple": True, "typeClass": "primitive", "value": [""]},
+                'otherId': {"typeName": "otherId", "multiple": True, "typeClass": "compound", "value": [""]},
+                'author': {"typeName": "author", "multiple": True, "typeClass": "compound", "value": [""]},
+                'datasetContact': {"typeName": "datasetContact", "multiple": True, "typeClass": "compound", "value": [""]},
+                'dsDescription': {"typeName": "dsDescription", "multiple": True, "typeClass": "compound", "value": [""]},
+                'subject': {"typeName": "subject", "multiple": True, "typeClass": "controlledVocabulary", "value": [""]},
+                'keyword': {"typeName": "keyword", "multiple": True, "typeClass": "compound", "value": [""]},
+                'topicClassification': {"typeName": "topicClassification", "multiple": True, "typeClass": "compound", "value": [""]},
+                'publication': {"typeName": "publication", "multiple": True, "typeClass": "compound", "value": [""]},
+                'notesText': {"typeName": "notesText", "multiple": False, "typeClass": "primitive", "value": ""},
+                'language': {"typeName": "language", "multiple": True, "typeClass": "controlledVocabulary", "value": [""]},
+                'producer': {"typeName": "producer", "multiple": True, "typeClass": "compound", "value": [""]},
+                'productionDate': {"typeName": "productionDate", "multiple": False, "typeClass": "primitive", "value": ""},
+                'productionPlace': {"typeName": "productionPlace", "multiple": True, "typeClass": "primitive", "value": [""]},
+                'contributor': {"typeName": "contributor", "multiple": True, "typeClass": "compound", "value": [""]},
+                'grantNumber': {"typeName": "grantNumber", "multiple": True, "typeClass": "compound", "value": [""]},
+                'distributor': {"typeName": "distributor", "multiple": True, "typeClass": "compound", "value": [""]},
+                'distributionDate': {"typeName": "distributionDate", "multiple": False, "typeClass": "primitive", "value": ""},
+                'depositor': {"typeName": "depositor", "multiple": False, "typeClass": "primitive", "value": ""},
+                'dateOfDeposit': {"typeName": "dateOfDeposit", "multiple": False, "typeClass": "primitive", "value": ""},
+                'timePeriodCovered': {"typeName": "timePeriodCovered", "multiple": True, "typeClass": "compound", "value": [""]},
+                'dateOfCollection': {"typeName": "dateOfCollection", "multiple": True, "typeClass": "compound", "value": [""]},
+                'kindOfData': {"typeName": "kindOfData", "multiple": True, "typeClass": "primitive", "value": [""]},
+                'series': {"typeName": "series", "multiple": True, "typeClass": "compound", "value": [""]},
+                'software': {"typeName": "software", "multiple": True, "typeClass": "compound", "value": [""]},
+                'relatedMaterial': {"typeName": "relatedMaterial", "multiple": True, "typeClass": "primitive", "value": [""]},
+                'relatedDatasets': {"typeName": "relatedDatasets", "multiple": True, "typeClass": "primitive", "value": [""]},
+                'otherReferences': {"typeName": "otherReferences", "multiple": True, "typeClass": "primitive", "value": [""]},
+                'dataSources': {"typeName": "dataSources", "multiple": True, "typeClass": "primitive", "value": [""]},
+                'originOfSources': {"typeName": "originOfSources", "multiple": False, "typeClass": "primitive", "value": ""},
+                'characteristicOfSources': {"typeName": "characteristicOfSources", "multiple": False, "typeClass": "primitive", "value": ""},
+                'accessToSources': {"typeName": "accessToSources", "multiple": False, "typeClass": "primitive", "value": ""}
+            }
+            block_name = 'citation'
+        else:
+            raise ValueError(f"CSV file headers do not contain expected markers. "
+                           f"Please add 'MARKER 1' or 'MARKER 2' to your CSV headers, "
+                           f"or ensure the file contains standard citation fields (title, subtitle, etc.)")
+
     # Build master lists of field types
     master_lists = []
     primitive_fields = []
@@ -527,6 +584,32 @@ def API_push(field, doi):
     print()
 
 
+def validate_configuration():
+    """
+    Validate that required configuration settings are present.
+
+    Checks that API token and base URL are configured before attempting
+    to connect to Dataverse.
+
+    Raises:
+        SystemExit: If required configuration is missing
+    """
+    if not api_token_origin or api_token_origin == "API KEY HERE":
+        print("ERROR: DATAVERSE_API_TOKEN is not configured!")
+        print("Please set DATAVERSE_API_TOKEN in your .env file or environment variables.")
+        sys.exit(1)
+
+    if not url_base_origin or url_base_origin == "BASE URL HERE":
+        print("ERROR: DATAVERSE_BASE_URL is not configured!")
+        print("Please set DATAVERSE_BASE_URL in your .env file or environment variables.")
+        sys.exit(1)
+
+    print(f"Configuration validated successfully!")
+    print(f"Dataverse URL: {url_base_origin}")
+    print(f"Files to process: {file_directory}")
+    print()
+
+
 def publish_dataset(doi):
     """
     Publish dataset with a minor version increment.
@@ -548,4 +631,5 @@ def publish_dataset(doi):
 # ============================================================================
 
 if __name__ == "__main__":
+    validate_configuration()
     file_loader()

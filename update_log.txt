@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/deploy/to_delete/Universal-Field-Editor-DATAVERSE/universal_field_editor_V2.py", line 551, in <module>
+    file_loader()
+  File "/home/deploy/to_delete/Universal-Field-Editor-DATAVERSE/universal_field_editor_V2.py", line 372, in file_loader
+    df = pd.read_csv(csv_path)
+  File "/home/deploy/to_delete/Universal-Field-Editor-DATAVERSE/myenv/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/home/deploy/to_delete/Universal-Field-Editor-DATAVERSE/myenv/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/home/deploy/to_delete/Universal-Field-Editor-DATAVERSE/myenv/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/home/deploy/to_delete/Universal-Field-Editor-DATAVERSE/myenv/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/home/deploy/to_delete/Universal-Field-Editor-DATAVERSE/myenv/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'DIRECTORY/FOR/Citation Metadata.csv'
